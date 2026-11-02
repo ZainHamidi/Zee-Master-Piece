@@ -15,5 +15,8 @@ rsync -az --delete \
   --exclude '.env*' --exclude '*.local' --exclude .DS_Store \
   ./ "$host:/opt/zee/app/"
 
-# --wait fails the deploy if a service doesn't come up healthy.
-ssh "$host" 'zee up -d --build --remove-orphans --wait && docker image prune -f >/dev/null && zee ps'
+# --wait fails the deploy if a service doesn't come up healthy. Caddy reloads its config without
+# dropping connections (a no-op when deploy/caddy/Caddyfile hasn't changed).
+ssh "$host" 'zee up -d --build --remove-orphans --wait \
+  && zee exec -T caddy caddy reload --config /etc/caddy/Caddyfile \
+  && docker image prune -f >/dev/null && zee ps'

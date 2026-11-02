@@ -6,6 +6,12 @@ One server (`2.31.170.44`, Ubuntu 26.04 ARM64) runs three containers with Docker
 visitor ──▶ Caddy :80/:443 (HTTPS, compression) ──▶ app :3000 (Node: site + /api) ──▶ MongoDB 7.0
 ```
 
+| Address | What |
+|---|---|
+| https://zeemasterpiece.com | The store. `/admin` redirects to the subdomain; the dashboard API answers 404 here |
+| https://admin.zeemasterpiece.com | The dashboard (same app, `/` → `/admin`; store pages redirect to the main domain) |
+| https://www.zeemasterpiece.com | Redirects to the store |
+
 Only Caddy is reachable from the internet. On the server:
 
 | Path | What |
@@ -42,15 +48,22 @@ Add an admin or reset a password later:
 ssh -t deploy@2.31.170.44 zee exec app node dist-server/create-admin.js
 ```
 
-## Connecting the domain
+## Domain and DNS
 
-1. DNS: `A` record → `2.31.170.44`, `AAAA` → `2a01:4f8:c016:1516::1`, for both `example.com` and `www.example.com`.
-2. In `deploy/Caddyfile`, replace the `:80` block with the commented domain blocks (real domain), then `./deploy/deploy.sh`.
-   Caddy gets the HTTPS certificate by itself once DNS points here.
-3. On the server, in `/opt/zee/.env`: `SITE_URL=https://example.com`, then `zee up -d`.
-4. Password-reset emails: verify the domain in Resend, then set `RESEND_API_KEY` and `RESEND_FROM` in `/opt/zee/.env`, then `zee up -d`.
+DNS is at Hostinger (hPanel → Domains → zeemasterpiece.com → DNS records):
 
-Admin sign-in only works over HTTPS (the session cookie is Secure), so it starts working after step 2.
+| Type | Name | Value |
+|---|---|---|
+| A / AAAA | `@` | `2.31.170.44` / `2a01:4f8:c016:1516::1` |
+| A / AAAA | `admin` | `2.31.170.44` / `2a01:4f8:c016:1516::1` |
+| CNAME | `www` | `zeemasterpiece.com` |
+
+Caddy gets and renews the HTTPS certificates by itself. Password-reset links use `SITE_URL` in
+`/opt/zee/.env` (`https://admin.zeemasterpiece.com`).
+
+Password-reset emails: verify zeemasterpiece.com in Resend (it gives TXT records to add at Hostinger), then set
+`RESEND_API_KEY` and `RESEND_FROM` in `/opt/zee/.env` and run `zee up -d`. Until then, reset links are printed
+in `zee logs app`.
 
 ## Backups
 

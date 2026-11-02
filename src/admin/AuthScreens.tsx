@@ -1,6 +1,7 @@
 import { Eye, EyeOff, Loader2, MailCheck } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { forgotPassword, login, resetPassword, type Account } from './api'
+import { STORE_URL } from './storeUrl'
 
 // Server messages are written for developers; these are what the person signing in should read.
 function friendly(message: string) {
@@ -17,7 +18,7 @@ export function AuthCard({ title, subtitle, children }: { title: string; subtitl
         {subtitle && <p className="auth-subtitle">{subtitle}</p>}
         {children}
       </div>
-      <a className="auth-back" href="/">
+      <a className="auth-back" href={STORE_URL}>
         ← Back to the website
       </a>
     </div>

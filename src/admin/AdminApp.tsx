@@ -8,6 +8,7 @@ import { ContentPanel } from './ContentPanel'
 import { PhotosPanel } from './PhotosPanel'
 import { ProductsPanel } from './ProductsPanel'
 import { SettingsPanel } from './SettingsPanel'
+import { STORE_URL } from './storeUrl'
 import { Toasts, type Notify, type Toast } from './Toasts'
 import './admin.css'
 
@@ -111,7 +112,7 @@ export default function AdminApp() {
             ))}
           </nav>
           <div className="admin-account">
-            <a href="/" target="_blank" rel="noopener noreferrer">
+            <a href={STORE_URL} target="_blank" rel="noopener noreferrer">
               <ExternalLink size={17} /> <span>View website</span>
             </a>
             <button onClick={signOut}>

@@ -1,0 +1,53 @@
+# Caddy sits in front of the app: HTTPS certificates (automatic), compression, security headers.
+#
+#   zeemasterpiece.com        the store
+#   admin.zeemasterpiece.com  the dashboard (same app; /admin pages and their API)
+#   www.zeemasterpiece.com    redirects to the store
+#
+# All three need DNS records pointing at this server (see deploy/README.md).
+
+(site) {
+	encode zstd gzip
+	# Image uploads are capped at 4 MB by the app; this stops oversized requests earlier.
+	request_body {
+		max_size 8MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options SAMEORIGIN
+		-Server
+	}
+	# Caddy replaces any X-Forwarded-For sent by visitors with their real address, which the
+	# app's sign-in rate limit relies on.
+	reverse_proxy app:3000
+}
+
+zeemasterpiece.com {
+	import site
+
+	# The dashboard lives on its own subdomain.
+	@dashboard path /admin /admin/*
+	redir @dashboard https://admin.zeemasterpiece.com{uri}
+
+	# The store never uses the dashboard's API, so it only answers on the admin subdomain.
+	@dashboardApi path /api/admin /api/admin/* /api/auth /api/auth/*
+	respond @dashboardApi 404
+}
+
+admin.zeemasterpiece.com {
+	import site
+	header X-Robots-Tag "noindex, nofollow"
+
+	@home path /
+	redir @home /admin
+
+	# Store pages belong on the main domain; keep only what the dashboard uses.
+	@store not path / /admin /admin/* /api/* /assets/* /images/* /favicon.svg /favicon.png /apple-touch-icon.png
+	redir @store https://zeemasterpiece.com{uri}
+}
+
+www.zeemasterpiece.com {
+	redir https://zeemasterpiece.com{uri} permanent
+}
