@@ -1,0 +1,35 @@
+# Caddy sits in front of the app: HTTPS certificates (automatic), compression, security headers.
+#
+# Until the domain is connected, the site answers on plain HTTP at the server's IP address.
+# Admin sign-in needs HTTPS (the session cookie is Secure), so it only works once the domain is set:
+# replace the ":80" block below with the two commented blocks, using the real domain.
+
+(site) {
+	encode zstd gzip
+	# Image uploads are capped at 4 MB by the app; this stops oversized requests earlier.
+	request_body {
+		max_size 8MB
+	}
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options SAMEORIGIN
+		-Server
+	}
+	# Caddy replaces any X-Forwarded-For sent by visitors with their real address, which the
+	# app's sign-in rate limit relies on.
+	reverse_proxy app:3000
+}
+
+:80 {
+	import site
+}
+
+# example.com {
+# 	import site
+# 	header Strict-Transport-Security "max-age=31536000"
+# }
+#
+# www.example.com {
+# 	redir https://example.com{uri} permanent
+# }

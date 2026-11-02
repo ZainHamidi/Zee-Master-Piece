@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:server": "vite build --config vite.server.config.ts",
     "lint": "oxlint",
     "preview": "vite preview",
+    "start": "node dist-server/index.js",
     "db:setup": "tsx scripts/setup-db.ts",
     "admin:create": "tsx scripts/create-admin.ts"
   },

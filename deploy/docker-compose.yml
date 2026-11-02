@@ -1,0 +1,69 @@
+# The live site on one server: Caddy (HTTPS) → app (Node) → MongoDB.
+# Always run through deploy/compose.sh (the `zee` command on the server), which passes the
+# server's settings from /opt/zee/.env. See deploy/README.md.
+name: zee
+
+services:
+  app:
+    build:
+      context: ..
+    image: zee-app
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 15s
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGODB_URI: mongodb://${MONGO_APP_USER}:${MONGO_APP_PASSWORD}@mongo:27017/${MONGODB_DB}?authSource=${MONGODB_DB}
+      MONGODB_DB: ${MONGODB_DB}
+      SITE_URL: ${SITE_URL:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM: ${RESEND_FROM:-}
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  mongo:
+    # 7.0, not 8.x: MongoDB 8.0+ crashes or refuses to start on Linux kernel 6.19–7.0.13 (TCMalloc/rseq,
+    # SERVER-121912), which includes Ubuntu 26.04's kernel. 7.0 is unaffected and supported until Aug 2027.
+    # Upgrade to 8.x in place once the server kernel is fixed (check: docker run --rm mongo:8.0 --version).
+    image: mongo:7.0
+    restart: unless-stopped
+    # The data is small; leave most of the RAM to the OS and the app.
+    command: ['--wiredTigerCacheSizeGB', '1']
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGODB_DB: ${MONGODB_DB}
+      MONGO_APP_USER: ${MONGO_APP_USER}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD}
+    volumes:
+      - mongo-data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/10-app-user.js:ro
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    # No published ports on purpose: only the app can reach the database. Never add one —
+    # Docker's published ports bypass the server firewall (ufw).
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+
+volumes:
+  mongo-data:
+  caddy-data:
+  caddy-config:
